@@ -115,27 +115,24 @@ inline platform::DiscoveredBoard* resolveBoardConfiguration(const platform::Boar
             speakerKnown = true;
         }
         if (!speakerKnown && facts && facts->speakerResource >= 0) {
-#if defined(KERNEL)
-            uint32_t bootSpk = 0;
-            if (PE_parse_boot_argn("-cirrusspkid", &bootSpk, sizeof(bootSpk))) {
-                speakers[i] = bootSpk;
+            if (!context.gpio) {
+                reason = "CS35L41_SPEAKER_ID_REQUIRED";
+                return nullptr;
+            }
+            if (context.gpio->readResource(uint32_t(facts->speakerResource), 0, false, speakers[i])) {
                 speakerKnown = true;
-            } else
-#endif
-            if (!context.gpio || !context.gpio->readResource(uint32_t(facts->speakerResource), 0, false, speakers[i])) {
+            }
 #if defined(KERNEL)
-                // Intel GPIO controller is unsupported for MMIO reads; fall back to verified speaker ID 0
-                if (available(context.identity.subsystemVendor, context.identity.subsystemDevice, 0)) {
-                    speakers[i] = 0;
-                    speakerKnown = true;
-                } else
-#endif
-                {
-                    reason = context.gpio ? "CS35L41_SPEAKER_ID_UNREADABLE" : "CS35L41_SPEAKER_ID_REQUIRED";
-                    return nullptr;
-                }
-            } else {
+            else if (available(context.identity.subsystemVendor, context.identity.subsystemDevice, 0)) {
+                // Intel GPIO controller is unsupported for MMIO reads in macOS kernel;
+                // fall back to default speaker ID 0 when verified tuning exists.
+                speakers[i] = 0;
                 speakerKnown = true;
+            }
+#endif
+            else {
+                reason = "CS35L41_SPEAKER_ID_UNREADABLE";
+                return nullptr;
             }
         }
         if (!speakerKnown)
