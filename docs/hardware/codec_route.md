@@ -194,6 +194,7 @@ The following table summarizes real-world hardware where this diagnostic methodo
 | **Lenovo ThinkBook 16p G6 IAX** (`17AA:391E`)        | ALC287 | 2x CS35L56 (I2C) | Node `0x14` | Node `0x17` | Node `0x02` | `01770100 01770500 0173b000 01770740`                                      | Verified (#16) |
 | **ASUS ROG Zephyrus G14 GA403UV** (`1043:1B13`)      | ALC285 | 2x CS35L56 (I2C) | Node `0x14` | Node `0x17` | Node `0x03` | `alcid=33` (or `01770c02 01770740`)                                        | Verified (#18) |
 | **HP ENVY x360 15-ey0xxx** (`103C:8A31`)             | ALC245 | 2x CS35L41 (I2C) | N/A (dual)  | Node `0x17` | Node `0x03` | Routed via Layout 13 (`01770740`, no EAPD)                                 | Verified (#14) |
+| **HP ENVY x360 13-bf0xxx** (`103C:8A28`)             | ALC245 | 2x CS35L41 (I2C) | N/A (dual)  | Node `0x17` | Node `0x03` | Routed via Layout 13 (`01770740`, no EAPD)                                 | Working        |
 
 ### Machine notes
 
@@ -238,5 +239,11 @@ The following table summarizes real-world hardware where this diagnostic methodo
 - **Problem**: Internal speakers silent on generic layouts despite "Built-in Output" appearing in Sound Settings.
 - **Root cause**: Node `0x17` pincap (`0x0000001c`) lacks an internal EAPD widget. Output depends entirely on CS35L41 receiving power over I2C.
 - **Solution**: Layout 13 connects Node `0x17` to DAC `0x03`, allowing CS35L41 amplifiers to receive the PCM stream.
+
+#### HP ENVY x360 13-bf0xxx (`103C:8A28`, Realtek ALC245)
+
+- **Hardware**: Intel Core i7-1250U (Alder Lake-UP4) with Realtek ALC245 and 2x CS35L41 amplifiers over I2C (`_SB.PC00.I2C1.SPKR`, addresses `0x40` Left, `0x41` Right).
+- **Speaker route**: Node `0x17` pincap (`0x0000001c`, no EAPD) driven by DAC `0x03`. Headphone output on Node `0x21` and internal microphone on Node `0x19`.
+- **Solution**: AppleALC Layout 13 (`alcid=13`) provides the correct speaker and headphone routes. Dual CS35L41 smart amplifiers receive power, clocks, and DSP firmware from `CirrusAudioFixup`.
 
 [Back to main guide](../../README.md#installation)
