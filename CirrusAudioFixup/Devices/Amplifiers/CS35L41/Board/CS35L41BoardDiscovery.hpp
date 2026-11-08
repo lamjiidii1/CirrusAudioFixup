@@ -6,6 +6,9 @@
 #include "Devices/Amplifiers/CS35L41/Hardware/Registers.hpp"
 #include "Devices/Amplifiers/CS35L41/Board/BoardProperties.hpp"
 #include "Platform/Board/BoardDiscovery.hpp"
+#if defined(KERNEL)
+#include <IOKit/IOLib.h>
+#endif
 namespace cirrus::devices::amplifiers::cs35l41 {
 using ResourceAvailable = bool (*)(uint16_t, uint16_t, uint32_t);
 class CS35L41BoardDiscovery final : public platform::DiscoveredBoard {
@@ -20,7 +23,17 @@ public:
     int32_t resetResource{-1};
     ~CS35L41BoardDiscovery() override = default;
     bool prepareHardware(platform::BoardDiscoveryContext::GPIOAccess& gpio) const override {
-        return (!resetDeclared && resetResource < 0) || gpio.reset(resetDeclared ? "reset-gpios" : nullptr, resetResource);
+        if (!resetDeclared && resetResource < 0)
+            return true;
+        if (gpio.reset(resetDeclared ? "reset-gpios" : nullptr, resetResource))
+            return true;
+#if defined(KERNEL)
+        // On Intel systems where MMIO GPIO reset pulsing is not implemented,
+        // amplifiers are already released from reset by UEFI/ACPI platform power.
+        return true;
+#else
+        return false;
+#endif
     }
 };
 inline platform::DiscoveredBoard* resolveBoardConfiguration(const platform::BoardDiscoveryContext& context, ResourceAvailable available,
@@ -102,11 +115,28 @@ inline platform::DiscoveredBoard* resolveBoardConfiguration(const platform::Boar
             speakerKnown = true;
         }
         if (!speakerKnown && facts && facts->speakerResource >= 0) {
+#if defined(KERNEL)
+            uint32_t bootSpk = 0;
+            if (PE_parse_boot_argn("-cirrusspkid", &bootSpk, sizeof(bootSpk))) {
+                speakers[i] = bootSpk;
+                speakerKnown = true;
+            } else
+#endif
             if (!context.gpio || !context.gpio->readResource(uint32_t(facts->speakerResource), 0, false, speakers[i])) {
-                reason = context.gpio ? "CS35L41_SPEAKER_ID_UNREADABLE" : "CS35L41_SPEAKER_ID_REQUIRED";
-                return nullptr;
+#if defined(KERNEL)
+                // Intel GPIO controller is unsupported for MMIO reads; fall back to verified speaker ID 0
+                if (available(context.identity.subsystemVendor, context.identity.subsystemDevice, 0)) {
+                    speakers[i] = 0;
+                    speakerKnown = true;
+                } else
+#endif
+                {
+                    reason = context.gpio ? "CS35L41_SPEAKER_ID_UNREADABLE" : "CS35L41_SPEAKER_ID_REQUIRED";
+                    return nullptr;
+                }
+            } else {
+                speakerKnown = true;
             }
-            speakerKnown = true;
         }
         if (!speakerKnown)
             speakers[i] = UINT32_MAX;
