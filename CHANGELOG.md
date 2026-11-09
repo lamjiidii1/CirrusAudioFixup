@@ -5,6 +5,10 @@
 ### CS35L41
 
 - Added HP ENVY x360 13-bf0xxx support (`CSC3551`, subsystem `103C:8A28`) over I2C (`0x40` Left, `0x41` Right) with internal boost topology.
+- Added Intel PCH GPIO reset pulse and input read support (`INTC1055`, `INT34C5`, `INTC1056`, `INTC1085`, `INTC1083`, `INTC105E`) for I2C platforms via memory-mapped GPIO community windows.
+- Added pad output direction and TX disable handling fallback when pulsing hardware reset lines on Intel platforms.
+- Added `-cirrusreset` boot argument allowing hardware reset pulse under read-only probe mode (`-cirrusro`) to discover uninitialized amplifiers.
+- Added speaker ID fallback handling on Intel platforms when GPIO reads are unavailable.
 
 ## [1.2.0] - 2026-11-06
 
